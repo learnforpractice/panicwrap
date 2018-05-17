@@ -39,6 +39,12 @@ type HandlerFunc func(string)
 type WrapConfig struct {
 	// Handler is the function called when a panic occurs.
 	Handler HandlerFunc
+    
+    //process path
+    ExePath string
+    
+    //sub process arguments
+    Args []string
 
 	// The cookie key and value are used within environmental variables
 	// to tell the child process that it is already executing so that
@@ -117,10 +123,17 @@ func Wrap(c *WrapConfig) (int, error) {
 		return -1, nil
 	}
 
+
 	// Get the path to our current executable
-	exePath, err := osext.Executable()
-	if err != nil {
-		return -1, err
+	var exePath string
+	if c.ExePath != "" {
+	    exePath= c.ExePath
+	} else {
+	    var err error
+    	exePath, err = osext.Executable()
+    	if err != nil {
+    		return -1, err
+    	}
 	}
 
 	// Pipe the stderr so we can read all the data as we look for panics
@@ -154,7 +167,12 @@ func Wrap(c *WrapConfig) (int, error) {
 	// set the environmental variable to include our cookie. We also
 	// set stdin/stdout to match the config. Finally, we pipe stderr
 	// through ourselves in order to watch for panics.
-	cmd := exec.Command(exePath, os.Args[1:]...)
+	var cmd *exec.Cmd
+	if c.Args != nil {
+    	cmd = exec.Command(exePath, c.Args...)
+	} else {
+    	cmd = exec.Command(exePath, os.Args[1:]...)
+	}
 	cmd.Env = append(os.Environ(), c.CookieKey+"="+c.CookieValue)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = stdout_w
